@@ -24,6 +24,25 @@ from diffusers.models.resnet import Downsample2D, ResnetBlock2D, Upsample2D
 from .transformer_2d import Transformer2DModel
 
 
+def Fourier_filter(x, threshold, scale):
+    # FFT
+    x_freq = torch.fft.fftn(x, dim=(-2, -1))
+    x_freq = torch.fft.fftshift(x_freq, dim=(-2, -1))
+    
+    B, C, H, W = x_freq.shape
+    mask = torch.ones((B, C, H, W)).cuda() 
+
+    crow, ccol = H // 2, W //2
+    mask[..., crow - threshold:crow + threshold, ccol - threshold:ccol + threshold] = scale
+    x_freq = x_freq * mask
+
+    # IFFT
+    x_freq = torch.fft.ifftshift(x_freq, dim=(-2, -1))
+    x_filtered = torch.fft.ifftn(x_freq, dim=(-2, -1)).real
+    
+    return x_filtered
+
+
 def get_down_block(
     down_block_type,
     num_layers,
@@ -764,6 +783,15 @@ class UpBlock2D(nn.Module):
             # pop res hidden states
             res_hidden_states = res_hidden_states_tuple[-1]
             res_hidden_states_tuple = res_hidden_states_tuple[:-1]
+            # Apply Free-U techniques
+            if self.freeu_param is not None:
+                if hidden_states.shape[1] == 1280:
+                    hidden_states[:,:640] = hidden_states[:,:640] * self.freeu_param['b1']
+                    res_hidden_states = Fourier_filter(res_hidden_states, threshold=1, scale=self.freeu_param['s1'])
+                if hidden_states.shape[1] == 640:
+                    hidden_states[:,:320] = hidden_states[:,:320] * self.freeu_param['b2']
+                    res_hidden_states = Fourier_filter(res_hidden_states, threshold=1, scale=self.freeu_param['s2'])
+
             hidden_states = torch.cat(
                 [hidden_states, res_hidden_states], dim=1)
 

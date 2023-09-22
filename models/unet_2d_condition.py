@@ -701,6 +701,10 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
         if isinstance(module, (CrossAttnDownBlock2D, DownBlock2D, CrossAttnUpBlock2D, UpBlock2D)):
             module.gradient_checkpointing = value
 
+    def register_freeu(self, freeu_param):
+        for block in self.up_blocks:
+            block.freeu_param = freeu_param
+
     def forward(
         self,
         sample: torch.FloatTensor,

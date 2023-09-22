@@ -13,7 +13,7 @@ sd_key = ""
 sd_version = ""
 model_dict = None
 
-def load_sd(key="runwayml/stable-diffusion-v1-5", use_fp16=False, load_inverse_scheduler=False, use_dpm_multistep_scheduler=False, scheduler_cls=None):
+def load_sd(key="runwayml/stable-diffusion-v1-5", freeu_param=None, use_fp16=False, load_inverse_scheduler=False, use_dpm_multistep_scheduler=False, scheduler_cls=None):
     """
     Keys:
      key = "CompVis/stable-diffusion-v1-4"
@@ -42,6 +42,9 @@ def load_sd(key="runwayml/stable-diffusion-v1-5", use_fp16=False, load_inverse_s
     tokenizer = CLIPTokenizer.from_pretrained(key, subfolder="tokenizer", revision=revision, torch_dtype=dtype)
     text_encoder = CLIPTextModel.from_pretrained(key, subfolder="text_encoder", revision=revision, torch_dtype=dtype).to(torch_device)
     unet = UNet2DConditionModel.from_pretrained(key, subfolder="unet", revision=revision, torch_dtype=dtype).to(torch_device)
+    # Register Free-U functionality
+    unet.register_freeu(freeu_param)
+
     if scheduler_cls is None: # Default setting (for compatibility)
         if use_dpm_multistep_scheduler:
             scheduler = DPMSolverMultistepScheduler.from_pretrained(key, subfolder="scheduler", revision=revision, torch_dtype=dtype)
